@@ -76,3 +76,6 @@ evo_rpe tum groundtruth.txt ORB-SLAM2.txt -r angle_deg -va -as --plot
 evo_traj tum --ref groundtruth.txt ORB-SLAM2.txt ours.txt -va -as --plot --save_plot plt.png --save_as_tum （可以同时对比多条轨迹）
 ```
 
+## 5.tools
+- `convert_pose.py`：将挖掘机采集的真值位姿数据转化为KITTI位姿格式
+- `mask.py`：使用Mask R-CNN进行语义分割，可CPU运行
