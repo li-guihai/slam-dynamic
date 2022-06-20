@@ -116,11 +116,11 @@ ${PCL_LIBRARIES}
 # target_link_libraries(my_mono ${PROJECT_NAME})
 
 
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 
-# add_executable(mono_tum
-# Examples/Monocular/mono_tum.cc)
-# target_link_libraries(mono_tum ${PROJECT_NAME})
+add_executable(mono_tum
+Examples/Monocular/mono_tum.cc)
+target_link_libraries(mono_tum ${PROJECT_NAME})
 
 # add_executable(mono_kitti
 # Examples/Monocular/mono_kitti.cc)
@@ -151,3 +151,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/RGB-D)
 add_executable(rgbd_my
 Examples/RGB-D/rgbd_my.cc)
 target_link_libraries(rgbd_my ${PROJECT_NAME})
+
+add_executable(rgbd_miner
+Examples/RGB-D/rgbd_miner.cc)
+target_link_libraries(rgbd_miner ${PROJECT_NAME})

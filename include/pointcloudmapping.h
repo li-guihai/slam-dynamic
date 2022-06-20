@@ -39,7 +39,7 @@ public:
     PointCloudMapping( double resolution_ );
     
     // 插入一个keyframe，会更新一次地图
-    void insertKeyFrame( KeyFrame* kf, cv::Mat& color, cv::Mat& depth );
+    void insertKeyFrame( KeyFrame* kf, cv::Mat& color, cv::Mat& depth, cv::Mat& mask, vector<cv::Rect2d> &dyn_obj);
     void shutdown();
     void viewer();
     void savePCD(const string &filename);
@@ -47,7 +47,7 @@ public:
     PointCloud::Ptr getPCD();
     
 protected:
-    PointCloud::Ptr generatePointCloud(KeyFrame* kf, cv::Mat& color, cv::Mat& depth);
+    PointCloud::Ptr generatePointCloud(KeyFrame* kf, cv::Mat& color, cv::Mat& depth, cv::Mat& mask, vector<cv::Rect2d> &dyn_obj);
     PointCloud::Ptr globalMap;
     shared_ptr<thread>  viewerThread;   
     
@@ -61,6 +61,8 @@ protected:
     vector<KeyFrame*>       keyframes;
     vector<cv::Mat>         colorImgs;
     vector<cv::Mat>         depthImgs;
+    vector<cv::Mat> masks;
+    vector<vector<cv::Rect2d>> dyn_objs;
     mutex                   keyframeMutex;
     uint16_t                lastKeyframeSize =0;
     

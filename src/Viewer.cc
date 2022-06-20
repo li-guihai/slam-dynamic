@@ -140,6 +140,10 @@ void Viewer::Run()
         pangolin::FinishFrame();
 
         cv::Mat im = mpFrameDrawer->DrawFrame();
+        if(im.cols > 960 || im.rows > 720) {
+            float f = min(960 / float(im.cols), 720/float(im.rows));
+            cv::resize(im, im, cv::Size(0,0), f, f);
+        }
         cv::imshow("ORB-SLAM2: Current Frame",im);
         cv::waitKey(mT);
 

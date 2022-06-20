@@ -52,15 +52,20 @@ public:
     Frame(const Frame &frame);
 
     // Constructor for stereo cameras.
-    Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
-    Frame(const cv::Mat &imLeft, const cv::Mat &imRight, vector<cv::Rect2d> &boxes, Frame &last_frame, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const cv::Mat &imRGB, const double &timeStamp, ORBextractor* extractorLeft,
+             ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const cv::Mat &imRGB, vector<cv::Rect2d> &boxes, Frame &last_frame,const double &timeStamp,
+             ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
     // Constructor for RGB-D cameras.
-    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
-    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &mask, vector<cv::Rect2d> &boxes, Frame &last_frame, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, 
+            cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imGray, const cv::Mat &imRGB, const cv::Mat &imDepth, const cv::Mat &mask, vector<cv::Rect2d> &boxes, Frame &last_frame, 
+            const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
     // Constructor for Monocular cameras.
-    Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imGray, const double &timeStamp, const cv::Mat &imRGB, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, 
+            cv::Mat &distCoef, const float &bf, const float &thDepth);
    
     void UpdateFrame(const vector<vector<int>> &dynStatus);
    
@@ -125,7 +130,7 @@ public:
     static float invfy;
     cv::Mat mDistCoef;
 
-    cv::Mat imgGray;
+    cv::Mat imgGray, imgRGB;
     vector<cv::Rect2d> objects;
     // box_status: 0/2/4-dyn, 1-static
     vector<int> box_idx, box_status;

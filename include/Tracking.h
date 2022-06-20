@@ -102,7 +102,7 @@ public:
     // Current Frame
     Frame mCurrentFrame, *mRefFrame;
     cv::Mat mImGray;
-    cv::Mat mImRGB;
+    cv::Mat mImRGB, mImMask;
     cv::Mat imDepth;
 
     // que to store n frames

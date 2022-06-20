@@ -118,7 +118,7 @@ cv::Mat FrameDrawer::DrawFrame()
             }
         }
     }
-    cv::imwrite("/home/hai/img/" + to_string(mnId) + ".png", im);
+    cv::imwrite("/home/hai/slam/" + to_string(mnId) + ".png", im);
 
     cv::Mat imWithInfo;
     DrawTextInfo(im,state, imWithInfo);
@@ -168,7 +168,7 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 void FrameDrawer::Update(Tracking *pTracker)
 {
     unique_lock<mutex> lock(mMutex);
-    pTracker->mCurrentFrame.imgGray.copyTo(mIm);
+    pTracker->mCurrentFrame.imgRGB.copyTo(mIm);
     mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
     N = mvCurrentKeys.size();
     mvbVO = vector<bool>(N,false);

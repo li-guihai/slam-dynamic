@@ -199,7 +199,7 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
         }
     }
 
-    mCurrentFrame = Frame(mImGray,imGrayRight,timestamp,mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray,imGrayRight,imRectLeft, timestamp,mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
     Track();
 
@@ -239,7 +239,7 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
         }
     }
 
-    mCurrentFrame = Frame(mImGray,imGrayRight,boxes,mLastFrame, timestamp,
+    mCurrentFrame = Frame(mImGray,imGrayRight,imRectLeft, boxes,mLastFrame, timestamp,
                         mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
     cout<<"frame done"<<endl<<endl;
     Track_new();
@@ -283,6 +283,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const c
 {
     mImGray = imRGB;
     mImRGB = imRGB;
+    mImMask = mask;
     imDepth = imD;
 
     if(mImGray.channels()==3)
@@ -303,7 +304,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const c
     if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
         imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-    mCurrentFrame = Frame(mImGray,imDepth,mask,boxes,mLastFrame, 
+    mCurrentFrame = Frame(mImGray, mImRGB, imDepth,mask,boxes,mLastFrame, 
                             timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
     cout<<"frame done"<<endl;
 
@@ -332,11 +333,11 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
     }
 
     if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
-        mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+        mCurrentFrame = Frame(mImGray,timestamp,im,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
     else
-        mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
-
-    Track();
+        mCurrentFrame = Frame(mImGray,timestamp,im,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    
+    Track_new();
 
     return mCurrentFrame.mTcw.clone();
 }
@@ -638,7 +639,7 @@ void Tracking::Track_new()
                 if(flag != 0) {
                     // Optimize frame pose with all matches, 优化位姿用于后面重投影
                     // if(mSensor == System::RGBD)
-                    // Optimizer::PoseOptimization(&mCurrentFrame);
+                    //     Optimizer::PoseOptimization(&mCurrentFrame);
                     if(flag == 1)
                         cout << "TrackH success" << endl;
                     else 
@@ -806,27 +807,27 @@ void Tracking::Track_new()
                 mVelocity = cv::Mat();
             
             // 加入动态信息
-            if(!mCurrentFrame.objects.empty() && count(mCurrentFrame.box_status.begin(), mCurrentFrame.box_status.end(), 4)) {
+            if(!mCurrentFrame.objects.empty() && count(mCurrentFrame.box_status.begin(), mCurrentFrame.box_status.end(), 2)) {
                 vector<dynamic> dyns;
 
                 for(int i(0); i<mCurrentFrame.objects.size(); i++) {
-                    if(mCurrentFrame.box_status[i] != 4) continue;
+                    if(mCurrentFrame.box_status[i] != 2) continue;
 
                     float center_x = mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2;
                     // cout<<"center_x "<<center_x<<", " <<mCurrentFrame.imgGray.cols*2.f/3.f<<endl;
-                    if(center_x < mCurrentFrame.imgGray.cols/5.f || center_x > mCurrentFrame.imgGray.cols*4.f/5.f) continue; //在边缘则不算动态
+                    if(center_x < mCurrentFrame.imgGray.cols*0.2 || center_x > mCurrentFrame.imgGray.cols*0.8) continue; //在边缘的深度不准确
                     float center_y = mCurrentFrame.objects[i].y+mCurrentFrame.objects[i].height/2;
                     float d=0;
                     float min_dist = FLT_MAX;
 
-                    // for(int j(0); j<mCurrentFrame.mvdynKeys[i].size(); j++) {
-                    //     if(mCurrentFrame.mvdynDepth[i][j] == -1) continue;
-                    //     // cout<<"pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2) "<<pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2)<<endl;
-                    //     if(pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2) < min_dist) {
-                    //         min_dist = pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2);
-                    //         d = mCurrentFrame.mvdynDepth[i][j];
-                    //     }
-                    // }
+                    for(int j(0); j<mCurrentFrame.mvdynKeys[i].size(); j++) {
+                        if(mCurrentFrame.mvdynDepth[i][j] == -1) continue;
+                        // cout<<"pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2) "<<pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2)<<endl;
+                        if(pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2) < min_dist) {
+                            min_dist = pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_x, 2) + pow(mCurrentFrame.mvdynKeys[i][j].pt.x - center_y, 2);
+                            d = mCurrentFrame.mvdynDepth[i][j];
+                        }
+                    }
                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ> ());
                     pcl::PointXYZ tempPoint;
                     for(int j=0; j<mCurrentFrame.mvdynKeys[i].size(); j++) {
@@ -845,26 +846,24 @@ void Tracking::Track_new()
                     pcl::PointXYZ position_OBB;
                     Eigen::Matrix3f rotational_matrix_OBB;
                     feature_extractor.getOBB(min_point_OBB, max_point_OBB, position_OBB, rotational_matrix_OBB);
+                    // d = position_OBB.z;
 
-                    d = position_OBB.z;
-                    if(d > 30 && d*mCurrentFrame.objects[i].area() > 1e6) continue;
                     int last_idx = find(mLastFrame.box_idx.begin(), mLastFrame.box_idx.end(), mCurrentFrame.box_idx[i]) - mLastFrame.box_idx.begin();
+
+                    if(d > 20) continue;
                     int weight = 3;
-                    // cout<<"d " << d<<", d*area " << d*mCurrentFrame.objects[i].area() << ", last_d "<< mLastFrame.box_depth[last_idx]<<endl;
                     if(mLastFrame.box_depth[last_idx] != -1) {
-                        if(abs(mLastFrame.box_depth[last_idx] - d) > 3) continue;
-                        d = (mLastFrame.box_depth[last_idx] * (weight - 1) + d) / weight;
+                        if(abs(mLastFrame.box_depth[last_idx] - d) > 5) continue;
+                        d = (mLastFrame.box_depth[last_idx]  + d* (weight - 1)) / weight;
                     }
 
                     mCurrentFrame.box_depth[i] = d;
                     
-                    // float x = (mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2 - mCurrentFrame.cx) * mCurrentFrame.invfx * d;
-                    // float y = (mCurrentFrame.objects[i].y+mCurrentFrame.objects[i].height/2 - mCurrentFrame.cy) * mCurrentFrame.invfy * d;
-                    // cout<<"mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2 " << mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2<<", x "<<x << ", y"<<y<<endl;
-
                     float x = (mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2 - mCurrentFrame.cx) * mCurrentFrame.invfx * d;
                     float y = (mCurrentFrame.objects[i].y+mCurrentFrame.objects[i].height/2 - mCurrentFrame.cy) * mCurrentFrame.invfy * d;
-                    cv::Mat tcd = (cv::Mat_<float>(3,1) << position_OBB.x, position_OBB.y, d);
+                    // cout<<"mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2 " << mCurrentFrame.objects[i].x+mCurrentFrame.objects[i].width/2<<", x "<<x << ", y"<<y<<endl;
+
+                    cv::Mat tcd = (cv::Mat_<float>(3,1) << x, y, d);
                     cv::Mat Rcd;
                     cv::eigen2cv(rotational_matrix_OBB, Rcd);
                     dynamic dyn;
@@ -873,7 +872,6 @@ void Tracking::Track_new()
                     dyn.box_id = mCurrentFrame.box_idx[i];
                     dyns.push_back(dyn);
                 }
-                // mpMap->AddDynamic(dyns);
                 if(dyns.size())
                     mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw, dyns);
                 else
@@ -1122,9 +1120,9 @@ int Tracking::Separate(cv::Mat HorF, int flag, vector<vector<int>> &dynStatus) {
         // cv::drawKeypoints(ref, mRefFrame->mvdynKeys[ref_idx], ref);
         if(mCurrentFrame.mdynDescriptors[n_box].cols == 0 || mRefFrame->mdynDescriptors[ref_idx].cols == 0) continue;
         matcherBF.match(mCurrentFrame.mdynDescriptors[n_box], mRefFrame->mdynDescriptors[ref_idx], good_matches);
-        cout<< "matches "<<good_matches.size() <<" of " << mCurrentFrame.mvdynKeys[n_box].size() <<" in box " <<mCurrentFrame.box_idx[n_box] <<endl;
+        cout<< "matched "<<good_matches.size() <<" of " << mCurrentFrame.mvdynKeys[n_box].size() <<" in box " <<mCurrentFrame.box_idx[n_box] <<endl;
         // 匹配数量太少(太远不考虑)则无法进行后续处理
-        if(good_matches.size() < 10 || good_matches.size() < 0.2*mCurrentFrame.mvdynKeys[n_box].size()) 
+        if(good_matches.size() < 3 || good_matches.size() < 0.2*mCurrentFrame.mvdynKeys[n_box].size()) 
             continue;
 
         vector<int> &dynStatus_ = dynStatus[n_box];
@@ -1135,77 +1133,97 @@ int Tracking::Separate(cv::Mat HorF, int flag, vector<vector<int>> &dynStatus) {
             classifyF(HorF, mCurrentFrame.mvdynKeysUn[n_box], mRefFrame->mvdynKeysUn[ref_idx], good_matches, dynStatus_);
 
         int num0 = dynStatus_.size() - count(dynStatus_.begin(), dynStatus_.end(), -1);
-        cout << "after classify, "<<num0<<", 0.1*good_matches.size() " << 0.1*good_matches.size() <<endl;
+        cout << "after classify, "<<num0<<" matches left."<<endl;
+                    // 画图用于调试
+        cv::Mat out;
+        vector<cv::DMatch> temp_matches;
+        for(int i=0; i<good_matches.size(); i++) {
+            if(dynStatus_[i] == -1) continue;
+            temp_matches.push_back(good_matches[i]);
+        }
+
+        cv::drawMatches(mCurrentFrame.imgRGB, mCurrentFrame.mvdynKeys[n_box], mRefFrame->imgRGB, 
+                        mRefFrame->mvdynKeys[ref_idx], temp_matches, out);
+        // cv::drawMatches(mCurrentFrame.imgGray, mCurrentFrame.mvdynKeys[n_box], mRefFrame->imgGray, mRefFrame->mvdynKeys[ref_idx], good_matches, out);
+        // cv::imshow("match" , out);
+        cv::imwrite("/home/hai/img_/" + to_string(mCurrentFrame.mnId)+"_"+to_string(n_box) + ".png", out);
         int last_idx = find(mLastFrame.box_idx.begin(), mLastFrame.box_idx.end(), mCurrentFrame.box_idx[n_box]) - mLastFrame.box_idx.begin();
         // 包括完全静止和局部运动（没有整体移动）两种情况
-        if(num0 > max((double)5, 0.2*good_matches.size())) {
-            mCurrentFrame.box_status[n_box] = 1;
+        if(num0 > max((double)1, 0.2*good_matches.size())) {
 
-            if(mLastFrame.box_status[last_idx] == 1) {
+            // 利用深度信息进行进一步过滤
+            /*
+            int filtered_num = 0;
+            for(int i=0; i<good_matches.size(); i++) {
+                if(dynStatus_[i] == -1) continue;
+                //只对前一步判断为静态点的进行进一步判断
+                const float zl = mRefFrame->mvdynDepth[ref_idx][good_matches[i].trainIdx];
+                const float zc = mCurrentFrame.mvdynDepth[n_box][good_matches[i].queryIdx];
+                // 深度有效
+                // 把当期帧的空间点变换到参考帧，与其真实深度比较
+                
+                if(zl>0 && zc>0) { 
+                    const float u = mCurrentFrame.mvdynKeys[n_box][good_matches[i].queryIdx].pt.x;
+                    const float v = mCurrentFrame.mvdynKeys[n_box][good_matches[i].queryIdx].pt.y;
+                    const float x = (u-mCurrentFrame.cx)*zc*mCurrentFrame.invfx;
+                    const float y = (v-mCurrentFrame.cy)*zc*mCurrentFrame.invfy;
+                    cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x,y,zc);
 
-                // 利用深度信息进行进一步过滤
-                // for(int i=0; i<good_matches.size(); i++) {
-                //     if(dynStatus_[i] == -1) continue;
-                //     //只对前一步判断为静态点的进行进一步判断
-                //     const float zl = mRefFrame->mvdynDepth[ref_idx][good_matches[i].trainIdx];
-                //     const float zc = mCurrentFrame.mvdynDepth[n_box][good_matches[i].queryIdx];
-                //     // 深度有效
-                //     // 把当期帧的空间点变换到参考帧，与其真实深度比较
-                    
-                //     if(zl>0 && zc>0) { 
-                //         const float u = mCurrentFrame.mvdynKeys[n_box][good_matches[i].queryIdx].pt.x;
-                //         const float v = mCurrentFrame.mvdynKeys[n_box][good_matches[i].queryIdx].pt.y;
-                //         const float x = (u-mCurrentFrame.cx)*zc*mCurrentFrame.invfx;
-                //         const float y = (v-mCurrentFrame.cy)*zc*mCurrentFrame.invfy;
-                //         cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x,y,zc);
-
-                //         cv::Mat x3Dl = Rlc*x3Dc + tlc;
-                //         const float zl_ = x3Dl.at<float>(2);
-                //         cout<<"zl, zl_ "<<zl<<", "<<zl_<<endl; 
-                //         // cout<<"zl_"<<zl_<<" zl:"<<zl<<endl;
-                //         if(fabs(zl - zl_) > 3.f) {
-                //             dynStatus_[i] = -1;
-                //         }
-                //     }
-                //     // 深度无效也认为是动态点
-                //     // else {
-                //     //     dynStatus_[i] = -1;
-                //     // }
-                // }
-                // int num = dynStatus_.size() - count(dynStatus_.begin(), dynStatus_.end(), -1);
-                // cout<<"valid "<< num << " of "<<num0<<" static."<<endl;
-                // if(num0 >= 3) {
-                    static_exit = true;
-                // }
-                //+", nums " + to_string(num0)
-                cv::putText(mCurrentFrame.imgGray, "Static"+to_string(mCurrentFrame.box_idx[n_box]), cv::Point(mCurrentFrame.objects[n_box].x, mCurrentFrame.objects[n_box].y), 2, 0.7, cv::Scalar(0,255,255), 2);
-
-                // 画图用于调试
-                cv::Mat out;
-                vector<cv::DMatch> temp_matches;
-                for(int i=0; i<good_matches.size(); i++) {
-                    if(dynStatus_[i] == -1) continue;
-                    temp_matches.push_back(good_matches[i]);
+                    cv::Mat x3Dl = Rlc*x3Dc + tlc;
+                    const float zl_ = x3Dl.at<float>(2);
+                    // cout<<"zl_"<<zl_<<" zl:"<<zl<<endl;
+                    if(fabs(zl - zl_) > 0.1) {
+                        dynStatus_[i] = -1;
+                        filtered_num++;
+                    }
                 }
-
-                // cv::drawMatches(mCurrentFrame.imgGray, mCurrentFrame.mvdynKeys[n_box], mRefFrame->imgGray, mRefFrame->mvdynKeys[ref_idx], temp_matches, out);
-                // cv::drawMatches(mCurrentFrame.imgGray, mCurrentFrame.mvdynKeys[n_box], mRefFrame->imgGray, mRefFrame->mvdynKeys[ref_idx], good_matches, out);
-                // cv::imshow("match" , out);
-                // cv::imwrite("/home/hai/img/" + to_string(mCurrentFrame.mnId)+"_"+to_string(n_box) + ".png", out);
+                // 深度无效也认为是动态点
+                // else {
+                //     dynStatus_[i] = -1;
+                // }
             }
+            int num = dynStatus_.size() - count(dynStatus_.begin(), dynStatus_.end(), -1);
+            cout<<"using Depth constrtaint filters "<< filtered_num << " matches."<<endl;
+            */
+            mCurrentFrame.box_status[n_box] == 1;
+
+            static_exit = true;
+            cv::putText(mCurrentFrame.imgRGB, "Static"+to_string(mCurrentFrame.box_idx[n_box]),
+                        cv::Point(mCurrentFrame.objects[n_box].x, mCurrentFrame.objects[n_box].y),
+                        2, 0.7, cv::Scalar(0,255,255), 2);
+            // continue;
+            
+
+            // // 画图用于调试
+            // cv::Mat out;
+            // vector<cv::DMatch> temp_matches;
+            // for(int i=0; i<good_matches.size(); i++) {
+            //     if(dynStatus_[i] == -1) continue;
+            //     temp_matches.push_back(good_matches[i]);
+            // }
+
+            // cv::drawMatches(mCurrentFrame.imgGray, mCurrentFrame.mvdynKeys[n_box], mRefFrame->imgGray, mRefFrame->mvdynKeys[ref_idx], temp_matches, out);
+            // // cv::drawMatches(mCurrentFrame.imgGray, mCurrentFrame.mvdynKeys[n_box], mRefFrame->imgGray, mRefFrame->mvdynKeys[ref_idx], good_matches, out);
+            // cv::imshow("match" , out);
+            // cv::imwrite("/home/hai/img_/" + to_string(mCurrentFrame.mnId)+"_"+to_string(n_box) + ".png", out);
         }
 
         else { 
-            // 连续三帧是动态才认为是动态， 避免框直接赋值过来而误当做动态物体的情况, 第一次dyn:0, 第二次：2 第三次：4
-            if(mLastFrame.box_status[last_idx] == 2 || mLastFrame.box_status[last_idx] == 4) {
-                // cout<<"dyn"<<endl;
-                mCurrentFrame.box_status[n_box] = 4;
-                cv::putText(mCurrentFrame.imgGray, "Dynamic"+to_string(mCurrentFrame.box_idx[n_box]), cv::Point(mCurrentFrame.objects[n_box].x, mCurrentFrame.objects[n_box].y), 2, 0.7, cv::Scalar(255,0, 255), 2);
-            }
-            else if(mLastFrame.box_status[last_idx] == 0) 
+            // 连续两帧是动态才认为是动态， 避免框直接赋值过来而误当做动态物体的情况, 第一次dyn:0, 第二次：2
+            if(mLastFrame.box_status[last_idx] == 0 || mLastFrame.box_status[last_idx] == 2) {
+                cout<<"dyn"<<endl;
                 mCurrentFrame.box_status[n_box] = 2;
-            else 
+                cv::putText(mCurrentFrame.imgRGB, "Dynamic"+to_string(mCurrentFrame.box_idx[n_box]), 
+                    cv::Point(mCurrentFrame.objects[n_box].x, mCurrentFrame.objects[n_box].y), 2, 0.7, cv::Scalar(255,0, 255), 2);
+            }
+            // else if(mLastFrame.box_status[last_idx] == 0) 
+            //     mCurrentFrame.box_status[n_box] = 2;
+            else {
+                cv::putText(mCurrentFrame.imgRGB, "d" + to_string(mCurrentFrame.box_idx[n_box]),
+                            cv::Point(mCurrentFrame.objects[n_box].x, mCurrentFrame.objects[n_box].y),
+                            2, 0.7, cv::Scalar(0,255,255), 2);
                 mCurrentFrame.box_status[n_box] = 0;
+            }
         }
     }
     // cv::imwrite("/home/hai/img/all/" + to_string(mCurrentFrame.mnId) + ".png", mCurrentFrame.imgGray);
@@ -1305,7 +1323,7 @@ void Tracking::classifyF(const cv::Mat &F21, const vector<cv::KeyPoint> &cur_kpt
     const float f32 = F21.at<float>(2,1);
     const float f33 = F21.at<float>(2,2);
 
-    const float th_F = 3.841;
+    const float th_F = 5.841;
     //信息矩阵，方差平方的倒数
     const float invSigmaSquare = 1.0/(sigma*sigma);
 
@@ -1979,7 +1997,14 @@ void Tracking::CreateNewKeyFrame()
 
     mpLocalMapper->SetNotStop(false);
 
-    mpPointCloudMapping->insertKeyFrame( pKF, this->mImRGB, this->imDepth);
+    // filter dynamic objects before cloudmapping
+    vector<cv::Rect2d> dyn_boxes;
+    for(int i=0; i<mCurrentFrame.objects.size(); i++) {
+        if(mCurrentFrame.box_status[i] == 2 || mCurrentFrame.box_status[i] == 0) {
+            dyn_boxes.push_back(mCurrentFrame.objects[i]);
+        }
+    }
+    mpPointCloudMapping->insertKeyFrame( pKF, this->mImRGB, this->imDepth, this->mImMask, dyn_boxes);
 
 
     mnLastKeyFrameId = mCurrentFrame.mnId;

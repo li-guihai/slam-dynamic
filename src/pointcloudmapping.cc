@@ -42,28 +42,43 @@ void PointCloudMapping::shutdown()
     viewerThread->join();
 }
 
-void PointCloudMapping::insertKeyFrame(KeyFrame* kf, cv::Mat& color, cv::Mat& depth)
+void PointCloudMapping::insertKeyFrame(KeyFrame* kf, cv::Mat& color, cv::Mat& depth, cv::Mat& mask, vector<cv::Rect2d> &dyn_obj)
 {
     cout<<"receive a keyframe, id = "<<kf->mnId<<endl;
     unique_lock<mutex> lck(keyframeMutex);
     keyframes.push_back( kf );
     colorImgs.push_back( color.clone() );
     depthImgs.push_back( depth.clone() );
+    masks.push_back(mask);
+    cout<<"dyn_obj.size() = "<<dyn_obj.size()<<endl;
+    dyn_objs.push_back(dyn_obj);
     
     keyFrameUpdated.notify_one();
 }
 
-pcl::PointCloud< PointCloudMapping::PointT >::Ptr PointCloudMapping::generatePointCloud(KeyFrame* kf, cv::Mat& color, cv::Mat& depth)
+pcl::PointCloud< PointCloudMapping::PointT >::Ptr PointCloudMapping::generatePointCloud(KeyFrame* kf,cv::Mat& color,
+                                                    cv::Mat& depth, cv::Mat& mask, vector<cv::Rect2d> &dyn_obj)
 {
     PointCloud::Ptr tmp( new PointCloud() );
     // point cloud is null ptr
+    int masked_num = 0;
     for ( int m=0; m<depth.rows; m+=3 )
     {
         for ( int n=0; n<depth.cols; n+=3 )
         {
+            bool need_continue = false;            
+            for (auto &obj:dyn_obj) {
+                if(obj.contains(cv::Point2f(n, m)) && mask.at<float>(m, n)!= 0){
+                    need_continue = true;
+                    masked_num++;
+                    break;
+                }
+            }
             float d = depth.ptr<float>(m)[n];
-            if (d < 0.01 || d>5)
+            if (d < 0.01 || d>5 || need_continue)// 
                 continue;
+
+
             PointT p;
             p.z = d;
             p.x = ( n - kf->cx) * p.z / kf->fx;
@@ -76,6 +91,7 @@ pcl::PointCloud< PointCloudMapping::PointT >::Ptr PointCloudMapping::generatePoi
             tmp->points.push_back(p);
         }
     }
+    cout<<"masked num: "<<masked_num<<endl;
     
     Eigen::Isometry3d T = ORB_SLAM2::Converter::toSE3Quat( kf->GetPose() );
     PointCloud::Ptr cloud(new PointCloud);
@@ -119,8 +135,16 @@ void PointCloudMapping::viewer()
         
         for ( size_t i=lastKeyframeSize; i<N ; i++ )
         {
-            PointCloud::Ptr p = generatePointCloud( keyframes[i], colorImgs[i], depthImgs[i] );
+            PointCloud::Ptr p = generatePointCloud( keyframes[i], colorImgs[i], depthImgs[i],masks[i], dyn_objs[i]);
             *globalMap += *p;
+            // if(i % 3 == 0) {
+            // PointCloud::Ptr tmp(new PointCloud());
+
+            // voxel.setInputCloud(p);
+            // voxel.filter( *tmp );
+            // string save_path = "/home/hai/pcds/" + std::to_string(i) + ".pcd";
+            // pcl::io::savePCDFile(save_path, *tmp);
+            // }
         }
         PointCloud::Ptr tmp(new PointCloud());
         voxel.setInputCloud( globalMap );

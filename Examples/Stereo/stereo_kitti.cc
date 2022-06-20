@@ -97,7 +97,6 @@ int main(int argc, char **argv)
 #else
         std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
 #endif
-        cout<<"img_"<<ni<<endl;
         // Pass the image to the SLAM system
         if(argc == 5) {
             std::chrono::steady_clock::time_point t_yolo = std::chrono::steady_clock::now();

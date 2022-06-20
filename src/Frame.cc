@@ -48,9 +48,11 @@ Frame::Frame(const Frame &frame)
      mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
      mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
      mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2),
-     imgGray(frame.imgGray.clone()), mvdynKeys(frame.mvdynKeys), mdynDescriptors(frame.mdynDescriptors), 
+     imgGray(frame.imgGray.clone()), imgRGB(frame.imgRGB.clone()),
+     mvdynKeys(frame.mvdynKeys), mdynDescriptors(frame.mdynDescriptors), 
      mvdynKeysUn(frame.mvdynKeysUn), mvdynDepth(frame.mvdynDepth), mvudynRight(frame.mvudynRight), 
-     objects(frame.objects), box_idx(frame.box_idx), box_status(frame.box_status), omit(frame.omit), box_depth(frame.box_depth), box_velocity(frame.box_velocity)
+     objects(frame.objects), box_idx(frame.box_idx), box_status(frame.box_status), omit(frame.omit),
+     box_depth(frame.box_depth), box_velocity(frame.box_velocity)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -61,12 +63,13 @@ Frame::Frame(const Frame &frame)
 }
 
 // ori stereo
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight,const cv::Mat &imRGB, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
      mpReferenceKF(static_cast<KeyFrame*>(NULL))
 {
     imgGray = cv::Mat(imLeft.rows, imLeft.cols, CV_8UC3);
     cv::cvtColor(imLeft, imgGray, CV_GRAY2BGR);
+    imRGB.copyTo(imgRGB);
 
     // Frame ID
     mnId=nNextId++;
@@ -123,13 +126,15 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 }
 
 // new stereo
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, vector<cv::Rect2d> &boxes, Frame &last_frame, const double &timeStamp,
+Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const cv::Mat &imRGB, vector<cv::Rect2d> &boxes, Frame &last_frame, const double &timeStamp,
             ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),
     mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth), mpReferenceKF(static_cast<KeyFrame*>(NULL))
 {
     imgGray = cv::Mat(imLeft.rows, imLeft.cols, CV_8UC3);
     cv::cvtColor(imLeft, imgGray, CV_GRAY2BGR);
+    imRGB.copyTo(imgRGB);
+
     // Frame ID
     mnId=nNextId++;
 
@@ -289,13 +294,14 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 //new RGBD
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &mask,vector<cv::Rect2d> &boxes, Frame &last_frame, const double &timeStamp, 
+Frame::Frame(const cv::Mat &imGray, const cv::Mat &imRGB, const cv::Mat &imDepth, const cv::Mat &mask,vector<cv::Rect2d> &boxes, Frame &last_frame, const double &timeStamp, 
                 ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
 {
     imgGray = cv::Mat(imGray.rows, imGray.cols, CV_8UC3);
     cv::cvtColor(imGray, imgGray, CV_GRAY2BGR);
+    imRGB.copyTo(imgRGB);
     // Frame ID
     mnId=nNextId++;
 
@@ -319,7 +325,9 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &mask,
 
     vector<vector<int>> index; //当一个特征点出现在多个box中时进行记录，需要将特征点复制到各个目标框
     vector<bool> hasKpts(boxes.size(), false); //记录每个box是否包含特征点
+    cout<<endl<<"after boxtrack, left boxes: "<<boxes.size()<<endl;
     bool empty_box = firstSeparate(mask, boxes, index, hasKpts);
+    cout<<"after firstSeparate, left boxes: "<<boxes.size()<<endl;
 
     UndistortKeyPoints();
 
@@ -362,10 +370,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &mask,
     box_status = vector<int>(boxes.size(), -1);
     box_depth = vector<float>(boxes.size(), -1);
     for(int i=0; i< boxes.size(); i++) {
-        cv::rectangle(imgGray, boxes[i], cv::Scalar(0, 0, 255), 2);
-        cv::Point2f center(boxes[i].x + boxes[i].width/2, boxes[i].y + boxes[i].height/2);
-        cv::Point2f predict(center.x + box_velocity[i].x, center.y + box_velocity[i].y);
-        cv::arrowedLine(imgGray, center, predict, cv::Scalar(255, 0, 255), 3);
+        cv::rectangle(imgRGB, boxes[i], cv::Scalar(0, 0, 255), 2);
+        // cv::Point2f center(boxes[i].x + boxes[i].width/2, boxes[i].y + boxes[i].height/2);
+        // cv::Point2f predict(center.x + box_velocity[i].x, center.y + box_velocity[i].y);
+        // cv::arrowedLine(imgRGB, center, predict, cv::Scalar(255, 0, 255), 3);
     }
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
@@ -394,14 +402,14 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &mask,
     AssignFeaturesToGrid();
 }
 
-
 // Monocular
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, const cv::Mat &imRGB, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
 {
     // Frame ID
     mnId=nNextId++;
+    imRGB.copyTo(imgRGB);
 
     // Scale Level Info
     mnScaleLevels = mpORBextractorLeft->GetLevels();
@@ -475,16 +483,17 @@ void Frame::boxTrack(vector<cv::Rect2d> &boxes, Frame &last_frame){
     box_idx = vector<int>(n_box, -1);
     omit = vector<bool>(n_box, false);
     box_velocity = vector<cv::Point2d>(n_box, cv::Point2d(0,0));
-    // cout<< "last_frame.objects.size() " << last_frame.objects.size() << ", n_box" <<n_box<<endl;
+    cout<< endl<<"last_frame.objects.size() " << last_frame.objects.size() << ", n_box" <<n_box;
     if(!last_frame.objects.empty()) {
         for(int i(0); i<last_frame.objects.size(); i++) {
             double minCost = 1;
             int minPosy = -1;
             for(int j(0); j<n_box; j++) {
                 // 匹配过了直接跳过
-                if(box_idx[j] != -1) {
-                    continue;
-                }
+                // cout<<"i" << i<<"j" << j<<" box_idx[j]"<<box_idx[j]<<endl;
+                // if(box_idx[j] != -1) {
+                //     continue;
+                // }
                 cv::Rect2d inter, uni;
                 inter = last_frame.objects[i] & boxes[j];
                 uni = last_frame.objects[i] | boxes[j];
@@ -497,28 +506,34 @@ void Frame::boxTrack(vector<cv::Rect2d> &boxes, Frame &last_frame){
                 }
             }
             // cout<<"min_y "<<minPosy<<endl;
-            if(-1 != minPosy) {
+            if(-1 != minPosy && !last_frame.omit[i]) {
                 box_idx[minPosy] = last_frame.box_idx[i];
-                box_velocity[minPosy].x = boxes[minPosy].x + boxes[minPosy].width/2 - last_frame.objects[i].x - last_frame.objects[i].width/2;
-                box_velocity[minPosy].y = boxes[minPosy].y + boxes[minPosy].height/2 - last_frame.objects[i].y - last_frame.objects[i].height/2;
-            }
-            // 未匹配上，则将上一帧的框添加给下一帧
-            else {
-                // if(!last_frame.omit[i]) //只允许添加一次
-                cv::Point2f center_cur(last_frame.objects[i].x + last_frame.objects[i].width/2 + last_frame.box_velocity[i].x,
-                                        last_frame.objects[i].y + last_frame.objects[i].height/2 + last_frame.box_velocity[i].y);
-                cv::Rect2f rect_cur(cv::Point2f(0,0), cv::Point2f(imgGray.cols, imgGray.rows));
-                if(rect_cur.contains(center_cur) && !last_frame.omit[i])
-                {
-                    cv::Rect2d box_cur = last_frame.objects[i] + last_frame.box_velocity[i];
-                    boxes.push_back(box_cur);
-                    box_idx.push_back(last_frame.box_idx[i]);
-                    omit.push_back(true);
-                    box_velocity.push_back(last_frame.box_velocity[i]);
-                    last_frame.box_status[i] = 0;
-                }
+                box_velocity[minPosy].x = boxes[minPosy].x + boxes[minPosy].width/2 
+                                            - last_frame.objects[i].x - last_frame.objects[i].width/2;
+                box_velocity[minPosy].y = boxes[minPosy].y + boxes[minPosy].height/2 
+                                            - last_frame.objects[i].y - last_frame.objects[i].height/2;
             }
         }
+        // 未匹配上，则将上一帧的框添加给下一帧
+        for (int i(0); i<last_frame.objects.size(); i++) {
+            if(last_frame.omit[i])//只允许添加一次
+                continue;
+            if (count(box_idx.begin(), box_idx.end(), last_frame.box_idx[i]))
+                continue;
+            cv::Point2f center_cur(last_frame.objects[i].x + last_frame.objects[i].width/2 + last_frame.box_velocity[i].x,
+                                    last_frame.objects[i].y + last_frame.objects[i].height/2 + last_frame.box_velocity[i].y);
+            cv::Rect2f rect_cur(cv::Point2f(0,0), cv::Point2f(imgGray.cols, imgGray.rows));
+            if(rect_cur.contains(center_cur))
+            {
+                cv::Rect2d box_cur = last_frame.objects[i] + last_frame.box_velocity[i];
+                boxes.push_back(box_cur);
+                box_idx.push_back(last_frame.box_idx[i]);
+                omit.push_back(true);
+                box_velocity.push_back(last_frame.box_velocity[i]);
+                // last_frame.box_status[i] = 0;
+            }
+        }
+
 
         // 当前帧中未匹配的框视为新出现的目标，添加编号
         for(int i(0); i<n_box; i++)
@@ -544,7 +559,8 @@ bool Frame::firstSeparate(const cv::Mat &mask, vector<cv::Rect2d> &boxes, vector
     {
         vector<int> idx;
         for(int j=0; j<boxes.size(); j++){
-            if(boxes[j].contains(mvKeys[i].pt) && mask.at<char>(mvKeys[i].pt.x, mvKeys[i].pt.y) != 0) {
+            if(boxes[j].contains(mvKeys[i].pt)) { // 
+                // cout<<"mask.value: "<<mask.at<float>(mvKeys[i].pt.x, mvKeys[i].pt.y)<<endl;
                 hasKpts[j] = true; 
                 if(-1 == mvKeys[i].class_id){
                     idx.push_back(j);
