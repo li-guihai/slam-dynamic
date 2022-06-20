@@ -37,12 +37,10 @@ We use modified versions of the [DBoW2](https://github.com/dorian3d/DBoW2) libra
 
 
 ## 3.Getting Started
-
-- Install ORB-SLAM2 prerequisites: C++11 or C++0x Compiler, Pangolin, OpenCV and Eigen3  (https://github.com/raulmur/ORB_SLAM2).
 - Install boost libraries with the command `sudo apt-get install libboost-all-dev`.
-- Install python 3.6, keras and tensorflow,  and download the `yolov3.weights` model from this address: https://pjreddie.com/media/files/yolov3.weights.
+- (optional) Install python 3.6, keras and tensorflow,  and download the `yolov3.weights` model from this address: https://pjreddie.com/media/files/yolov3.weights.
   (YOLOv3检测耗时严重，可以提前使用python生成检测结果直接读取)
-- Clone this repo:
+- Clone this repo and build:
 ```bash
 git clone https://gitee.com/wizard_hai/slam-dynamic.git
 cd slam-dynamic
@@ -52,7 +50,7 @@ chmod +x build.sh
 
 ## 4.Execute Example
 
-### rgbd（稠密建图）
+### rgbd（with dense_map）
 ```
 ./Examples/RGB-D/rgbd_my Vocabulary/ORBvoc.txt Examples/RGB-D/KITTI03.yaml YOUR_PATH/kitti03/
 ./Examples/RGB-D/rgbd_miner Vocabulary/ORBvoc.txt Examples/RGB-D/miner.yaml YOUR_PATH/miner/
