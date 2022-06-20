@@ -2,10 +2,10 @@
 ![](demo/diagram.jpg)
 ![](demo/kittiMap.jpg)
 ## 1.Introduction
-- This source is the code of a visual Semantic SLAM algorithm based on target tracking and geometric constraints, in order to eliminate the influence of dynamic objects on localization and mapping. This source is improved on the framework of ORB-SLAM2.
+- This project is the code of a visual Semantic SLAM algorithm based on target tracking and geometric constraints, in order to eliminate the influence of dynamic objects on localization and mapping. This source is improved based on ORB-SLAM2.
 
 ## 2. Prerequisites
-- We have tested the library in **Ubuntu 12.04**, **14.04** and **16.04**, but it should be easy to compile in other platforms. A powerful computer (e.g. i7) will ensure real-time performance and provide more stable and accurate results.
+- We have tested the library in **18.04**, but it should be easy to compile in other platforms. A powerful computer (e.g. i7) will ensure real-time performance and provide more stable and accurate results.
 
 ### C++11 or C++0x Compiler
 We use the new thread and chrono functionalities of C++11.
