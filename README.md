@@ -5,7 +5,7 @@
 - This source is the code of a visual Semantic SLAM algorithm based on target tracking and geometric constraints, in order to eliminate the influence of dynamic objects on localization and mapping. This source is improved on the framework of ORB-SLAM2.
 
 ## 2. Prerequisites
-We have tested the library in **Ubuntu 12.04**, **14.04** and **16.04**, but it should be easy to compile in other platforms. A powerful computer (e.g. i7) will ensure real-time performance and provide more stable and accurate results.
+- We have tested the library in **Ubuntu 12.04**, **14.04** and **16.04**, but it should be easy to compile in other platforms. A powerful computer (e.g. i7) will ensure real-time performance and provide more stable and accurate results.
 
 ### C++11 or C++0x Compiler
 We use the new thread and chrono functionalities of C++11.
@@ -32,7 +32,7 @@ We use the new thread and chrono functionalities of C++11.
 ### Pangolin
 We use [Pangolin](https://github.com/stevenlovegrove/Pangolin) for visualization and user interface. Dowload and install instructions can be found at: https://github.com/stevenlovegrove/Pangolin.
 
-## DBoW2 and g2o (Included in Thirdparty folder)
+### DBoW2 and g2o (Included in Thirdparty folder)
 We use modified versions of the [DBoW2](https://github.com/dorian3d/DBoW2) library to perform place recognition and [g2o](https://github.com/RainerKuemmerle/g2o) library to perform non-linear optimizations. Both modified libraries (which are BSD) are included in the *Thirdparty* folder.
 
 
