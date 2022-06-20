@@ -54,7 +54,6 @@ chmod +x build.sh
 
 ### rgbd（稠密建图）
 ```
-<!-- evaluate文件夹下的用法不一样 -->
 ./Examples/RGB-D/rgbd_my Vocabulary/ORBvoc.txt Examples/RGB-D/KITTI03.yaml YOUR_PATH/kitti03/
 ./Examples/RGB-D/rgbd_miner Vocabulary/ORBvoc.txt Examples/RGB-D/miner.yaml YOUR_PATH/miner/
 ```
